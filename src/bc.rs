@@ -1,11 +1,15 @@
-use crate::online_users;
 use crate::online_users::OnlineUsersData;
-use actix_web::{get, web, Responder};
+use crate::{bc, online_users};
+use actix_web::http::header::ContentType;
+use actix_web::{get, web, HttpResponse, Responder};
 use anyhow::Context;
 use futures::lock::Mutex;
 use log::debug;
 use sqlx::{Pool, Postgres};
 use std::time::Instant;
+
+#[derive(Copy, Clone)]
+pub struct Version(pub u32);
 
 pub async fn get_online_users_count(online_users: OnlineUsersData) -> impl Responder {
     let count = online_users.lock().expect("Online users poisoned").count();
@@ -58,10 +62,12 @@ pub async fn get_chart(chart: web::Data<Mutex<CachedChart>>) -> actix_web::Resul
         .context("Could not get json chart")
         .map_err(actix_web::error::ErrorInternalServerError)?
         .to_string();
-    Ok(chart_data)
+    Ok(HttpResponse::Ok()
+        .content_type(ContentType::json())
+        .body(chart_data))
 }
 
 #[get("/version")]
-pub async fn version() -> impl Responder {
-    ""
+pub async fn version(version: web::Data<Version>) -> impl Responder {
+    version.0.to_string()
 }

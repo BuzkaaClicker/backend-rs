@@ -2,6 +2,7 @@ mod bc;
 mod online_users;
 mod yt;
 
+use crate::bc::CachedChart;
 use crate::online_users::OnlineUsers;
 use actix_web::rt::spawn;
 use actix_web::web::Data;
@@ -12,8 +13,7 @@ use log::info;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
 use std::env;
-use std::sync::{Arc, Mutex};
-use crate::bc::CachedChart;
+use std::sync::Mutex;
 
 pub mod built_info {
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
@@ -25,6 +25,12 @@ async fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(Env::new().default_filter_or("info"))
         .format_timestamp_millis()
         .init();
+
+    let bc_version: u32 = env::var("BUZKAACLICKER_VERSION")
+        .context("Invalid BUZKAACLICKER_VERSION env variable!")?
+        .parse()
+        .context("BUZKAACLICKER_VERSION is not a u32 number!")?;
+    let bc_version = bc::Version(bc_version);
 
     info!("Establishing postgres connection.");
     let pg = create_postgres_pool()
@@ -50,6 +56,7 @@ async fn main() -> anyhow::Result<()> {
             .service(
                 web::scope("/buzkaaclicker")
                     .app_data(Data::clone(&chart_data))
+                    .app_data(Data::new(bc_version))
                     .service(bc::get_chart)
                     .service(
                         web::resource(vec!["/online-users", "/onlineUsers"])
