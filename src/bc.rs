@@ -1,5 +1,5 @@
+use crate::online_users;
 use crate::online_users::OnlineUsersData;
-use crate::{bc, online_users};
 use actix_web::http::header::ContentType;
 use actix_web::{get, web, HttpResponse, Responder};
 use anyhow::Context;
