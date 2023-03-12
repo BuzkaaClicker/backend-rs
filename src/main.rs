@@ -1,13 +1,12 @@
 #![feature(result_option_inspect)]
+#![feature(result_flattening)]
 
-mod bc;
-mod file_host;
-mod online_users;
-mod yt;
+use std::collections::HashMap;
+use std::env;
+use std::path::PathBuf;
+use std::sync::Mutex;
+use std::time::Duration;
 
-use crate::bc::CachedChart;
-use crate::file_host::FileHost;
-use crate::online_users::OnlineUsers;
 use actix_extensible_rate_limit::backend::memory::InMemoryBackend;
 use actix_extensible_rate_limit::backend::{SimpleInputFunctionBuilder, SimpleOutput};
 use actix_extensible_rate_limit::RateLimiter;
@@ -20,11 +19,16 @@ use env_logger::Env;
 use log::info;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
-use std::collections::HashMap;
-use std::env;
-use std::path::PathBuf;
-use std::sync::Mutex;
-use std::time::Duration;
+
+use crate::bc::CachedChart;
+use crate::file_host::FileHost;
+use crate::online_users::OnlineUsers;
+use crate::yt::CachedLiveVisitor;
+
+mod bc;
+mod file_host;
+mod online_users;
+mod yt;
 
 pub mod built_info {
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
@@ -57,6 +61,11 @@ async fn main() -> anyhow::Result<()> {
     let chart_data = create_chart_data(&pg).await?;
     let file_host = create_file_host(Pool::clone(&pg));
     let rate_limiter_backend = InMemoryBackend::builder().build();
+    let live_visitor = Data::new(futures::lock::Mutex::new(
+        CachedLiveVisitor::new()
+            .await
+            .context("Could not create cached visitor")?,
+    ));
 
     HttpServer::new(move || {
         let input = SimpleInputFunctionBuilder::new(Duration::from_secs(5), 1)
@@ -70,6 +79,7 @@ async fn main() -> anyhow::Result<()> {
             .app_data(Data::clone(&online_users))
             .app_data(Data::new(Pool::clone(&pg)))
             .app_data(Data::clone(&file_host))
+            .app_data(Data::clone(&live_visitor))
             .service(index)
             .service(
                 web::scope("/buzkaaclicker")
