@@ -119,7 +119,7 @@ async fn main() -> anyhow::Result<()> {
 async fn create_chart_data(
     pg: &Pool<Postgres>,
 ) -> anyhow::Result<Data<futures::lock::Mutex<CachedChart>>> {
-    let cached_chart = CachedChart::new(Pool::clone(&pg))
+    let cached_chart = CachedChart::new(Pool::clone(pg))
         .await
         .context("Could not create cached chart!")?;
     Ok(Data::new(futures::lock::Mutex::new(cached_chart)))
