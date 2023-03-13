@@ -11,6 +11,7 @@ use actix_extensible_rate_limit::backend::memory::InMemoryBackend;
 use actix_extensible_rate_limit::backend::{SimpleInputFunctionBuilder, SimpleOutput};
 use actix_extensible_rate_limit::RateLimiter;
 use actix_web::http::header::ContentType;
+use actix_web::middleware::DefaultHeaders;
 use actix_web::rt::spawn;
 use actix_web::web::Data;
 use actix_web::{get, middleware, web, App, HttpResponse, HttpServer, Responder};
@@ -20,12 +21,13 @@ use log::info;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
 
-use crate::bc::CachedChart;
+use crate::bc::{CachedChart, DownloadCounter};
 use crate::file_host::FileHost;
 use crate::online_users::OnlineUsers;
 use crate::yt::CachedLiveVisitor;
 
 mod bc;
+mod cache;
 mod file_host;
 mod online_users;
 mod yt;
@@ -66,6 +68,9 @@ async fn main() -> anyhow::Result<()> {
             .await
             .context("Could not create cached visitor")?,
     ));
+    let download_counter = Data::new(futures::lock::Mutex::new(
+        DownloadCounter::new(Pool::clone(&pg)).await,
+    ));
 
     HttpServer::new(move || {
         let input = SimpleInputFunctionBuilder::new(Duration::from_secs(5), 1)
@@ -80,12 +85,15 @@ async fn main() -> anyhow::Result<()> {
             .app_data(Data::new(Pool::clone(&pg)))
             .app_data(Data::clone(&file_host))
             .app_data(Data::clone(&live_visitor))
+            .app_data(Data::clone(&download_counter))
+            .wrap(DefaultHeaders::new().add(("Access-Control-Allow-Origin", "*")))
             .service(index)
             .service(
                 web::scope("/buzkaaclicker")
                     .app_data(Data::clone(&chart_data))
                     .app_data(Data::new(bc_version))
                     .service(bc::get_chart)
+                    .service(bc::get_download_count)
                     .service(
                         web::resource(vec!["/online-users", "/onlineUsers"])
                             .route(web::get().to(bc::get_online_users_count)),
