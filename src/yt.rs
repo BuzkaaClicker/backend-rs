@@ -1,5 +1,7 @@
-use std::time::{Duration, Instant};
+use std::sync::Arc;
+use std::time::{Duration};
 
+use crate::cache::Memoized;
 use actix_web::http::header::ContentType;
 use actix_web::{get, web, HttpRequest, HttpResponse, Responder};
 use anyhow::{anyhow, Context};
@@ -87,7 +89,7 @@ struct LiveResponse {
 
 impl From<Option<LiveMeta>> for LiveResponse {
     fn from(meta_maybe: Option<LiveMeta>) -> Self {
-         match meta_maybe {
+        match meta_maybe {
             None => LiveResponse {
                 id: String::from(CHANNEL_ID),
                 name: String::new(),
@@ -108,40 +110,34 @@ impl From<Option<LiveMeta>> for LiveResponse {
     }
 }
 
-pub struct CachedLiveVisitor {
-    visitor: LiveVisitor,
-    cached: String,
-    refreshed_at: Instant,
-}
+#[derive(Clone)]
+pub struct LiveJson(Option<String>);
 
-impl CachedLiveVisitor {
-    pub async fn new() -> anyhow::Result<Self> {
-        let visitor = LiveVisitor::new();
-        let cached = CachedLiveVisitor::fetch_live_meta(&visitor).await?;
-        Ok(Self {
-            visitor,
-            cached,
-            refreshed_at: Instant::now(),
+impl LiveJson {
+    pub async fn memoized() -> Memoized<Self> {
+        let visitor = Arc::new(LiveVisitor::new());
+        Memoized::new(Duration::from_secs(60), move || {
+            let visitor = Arc::clone(&visitor);
+            async move {
+                debug!("Generating new live json...");
+                let result = visitor
+                    .get_live_meta()
+                    .await
+                    .map(LiveResponse::from)
+                    .and_then(|response| {
+                        serde_json::to_string(&response)
+                            .context("Could not serialize live meta response")
+                    });
+                Self(match result {
+                    Ok(json) => Some(json),
+                    Err(err) => {
+                        error!("Could not fetch live json: {err}");
+                        None
+                    }
+                })
+            }
         })
-    }
-
-    pub async fn get_live_meta(&mut self) -> anyhow::Result<&str> {
-        if self.refreshed_at.elapsed() < Duration::from_secs(30) {
-            return Ok(&self.cached);
-        }
-        self.refreshed_at = Instant::now();
-        self.cached = CachedLiveVisitor::fetch_live_meta(&self.visitor).await?;
-        Ok(&self.cached)
-    }
-
-    async fn fetch_live_meta(visitor: &LiveVisitor) -> anyhow::Result<String> {
-        visitor
-            .get_live_meta()
-            .await
-            .map(LiveResponse::from)
-            .and_then(|response| {
-                serde_json::to_string(&response).context("Could not serialize live meta response")
-            })
+        .await
     }
 }
 
@@ -149,7 +145,7 @@ impl CachedLiveVisitor {
 pub async fn live(
     req: HttpRequest,
     online_users: OnlineUsersData,
-    live_visitor: web::Data<futures::lock::Mutex<CachedLiveVisitor>>,
+    live_json: web::Data<Memoized<LiveJson>>,
 ) -> actix_web::Result<impl Responder> {
     let ip = req
         .connection_info()
@@ -160,13 +156,11 @@ pub async fn live(
         .lock()
         .expect("Online users poisoned!")
         .keep_alive(ip);
-
-    let mut live_visitor = live_visitor.lock().await;
-    let live_meta = live_visitor
-        .get_live_meta()
+    let live_meta = live_json
+        .get()
         .await
-        .inspect_err(|err| error!("Could not fetch live metadata: {err}"))
-        .map_err(|_| actix_web::error::ErrorInternalServerError("Could not get live metadata"))?
+        .0
+        .ok_or_else(|| actix_web::error::ErrorInternalServerError("Could not get live metadata"))?
         .to_owned();
     Ok(HttpResponse::Ok()
         .content_type(ContentType::json())

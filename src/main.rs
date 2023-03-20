@@ -21,10 +21,10 @@ use log::info;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
 
-use crate::bc::{CachedChart, DownloadCounter};
+use crate::bc::{ChartJson, DownloadCount};
 use crate::file_host::FileHost;
 use crate::online_users::OnlineUsers;
-use crate::yt::CachedLiveVisitor;
+use crate::yt::LiveJson;
 
 mod bc;
 mod cache;
@@ -60,17 +60,11 @@ async fn main() -> anyhow::Result<()> {
         Pool::clone(&pg),
         Data::clone(&online_users),
     ));
-    let chart_data = create_chart_data(&pg).await?;
+    let chart_json = Data::new(ChartJson::memoized(Pool::clone(&pg)).await);
     let file_host = create_file_host(Pool::clone(&pg));
     let rate_limiter_backend = InMemoryBackend::builder().build();
-    let live_visitor = Data::new(futures::lock::Mutex::new(
-        CachedLiveVisitor::new()
-            .await
-            .context("Could not create cached visitor")?,
-    ));
-    let download_counter = Data::new(futures::lock::Mutex::new(
-        DownloadCounter::new(Pool::clone(&pg)).await,
-    ));
+    let live_json = Data::new(LiveJson::memoized().await);
+    let download_counter = Data::new(DownloadCount::memoized(Pool::clone(&pg)).await);
 
     HttpServer::new(move || {
         let input = SimpleInputFunctionBuilder::new(Duration::from_secs(5), 1)
@@ -84,13 +78,13 @@ async fn main() -> anyhow::Result<()> {
             .app_data(Data::clone(&online_users))
             .app_data(Data::new(Pool::clone(&pg)))
             .app_data(Data::clone(&file_host))
-            .app_data(Data::clone(&live_visitor))
+            .app_data(Data::clone(&live_json))
             .app_data(Data::clone(&download_counter))
             .wrap(DefaultHeaders::new().add(("Access-Control-Allow-Origin", "*")))
             .service(index)
             .service(
                 web::scope("/buzkaaclicker")
-                    .app_data(Data::clone(&chart_data))
+                    .app_data(Data::clone(&chart_json))
                     .app_data(Data::new(bc_version))
                     .service(bc::get_chart)
                     .service(bc::get_download_count)
@@ -114,15 +108,6 @@ async fn main() -> anyhow::Result<()> {
     .run()
     .await?;
     Ok(())
-}
-
-async fn create_chart_data(
-    pg: &Pool<Postgres>,
-) -> anyhow::Result<Data<futures::lock::Mutex<CachedChart>>> {
-    let cached_chart = CachedChart::new(Pool::clone(pg))
-        .await
-        .context("Could not create cached chart!")?;
-    Ok(Data::new(futures::lock::Mutex::new(cached_chart)))
 }
 
 fn create_file_host(pg: Pool<Postgres>) -> Data<FileHost> {
