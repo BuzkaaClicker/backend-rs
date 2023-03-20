@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::time::{Duration};
+use std::time::Duration;
 
 use crate::cache::Memoized;
 use actix_web::http::header::ContentType;
@@ -156,12 +156,10 @@ pub async fn live(
         .lock()
         .expect("Online users poisoned!")
         .keep_alive(ip);
-    let live_meta = live_json
-        .get()
-        .await
-        .0
-        .ok_or_else(|| actix_web::error::ErrorInternalServerError("Could not get live metadata"))?
-        .to_owned();
+    let live_meta =
+        live_json.get().await.0.ok_or_else(|| {
+            actix_web::error::ErrorInternalServerError("Could not get live metadata")
+        })?;
     Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
         .body(live_meta))
