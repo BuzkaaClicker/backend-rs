@@ -1,5 +1,5 @@
 [package]
-name = "bclickerapi"
+name = "bclicker-server"
 authors = ["makin"]
 version = "0.1.0"
 edition = "2021"
