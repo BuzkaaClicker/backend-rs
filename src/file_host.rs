@@ -1,5 +1,5 @@
 use actix_files::NamedFile;
-use actix_web::{get, web, HttpRequest};
+use actix_web::{web, HttpRequest};
 use anyhow::Context;
 use log::error;
 use sqlx::{Pool, Postgres};
@@ -29,9 +29,9 @@ impl FileHost {
     pub async fn download(
         &self,
         ip: &str,
-        file_name: &Option<String>,
+        file_name: &Option<&str>,
     ) -> actix_web::Result<NamedFile> {
-        let file_name = file_name.as_ref().unwrap_or(&self.default_file);
+        let file_name = file_name.unwrap_or(&self.default_file);
         let file_path = self
             .files
             .get(&file_name.to_lowercase())
@@ -57,17 +57,15 @@ impl FileHost {
     }
 }
 
-#[get("/download/{file}")]
 pub async fn download_specific(
     req: HttpRequest,
     file_host: web::Data<FileHost>,
-    path: web::Path<String>,
 ) -> actix_web::Result<NamedFile> {
-    let file_name = path.into_inner();
+    let file_name = req.match_info().get("file");
     let ip = req
         .connection_info()
         .realip_remote_addr()
         .expect("Request ip must be present!")
         .to_owned();
-    file_host.download(&ip, &Some(file_name)).await
+    file_host.download(&ip, &file_name).await
 }

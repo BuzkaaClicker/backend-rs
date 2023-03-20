@@ -96,15 +96,15 @@ async fn main() -> anyhow::Result<()> {
             )
             .service(web::scope("/youtube").service(yt::live))
             .service(
-                web::scope("")
-                    .service(file_host::download_specific)
+                web::resource(["/download", "/download/", "/download/{file}"])
+                    .route(web::get().to(file_host::download_specific))
                     .wrap(rate_limiter),
             )
             .wrap(middleware::Logger::new(
                 r#"%a (%{r}a) "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,
             ))
     })
-    .bind(("127.0.0.1", 2137))?
+    .bind(("0.0.0.0", 2137))?
     .run()
     .await?;
     Ok(())

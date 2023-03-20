@@ -1,3 +1,6 @@
+CREATE DATABASE buzkaaclicker;
+\connect buzkaaclicker;
+
 create table online_users
 (
     id    serial primary key,
