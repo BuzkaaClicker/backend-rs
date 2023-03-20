@@ -113,17 +113,17 @@ async fn main() -> anyhow::Result<()> {
 fn create_file_host(pg: Pool<Postgres>) -> Data<FileHost> {
     let files = HashMap::from([
         (
-            "BuzkaaClickerInstaller".into(),
-            PathBuf::from("./filehost/BuzkaaClickerInstaller.webp.zip"),
+            "BClickerDownloader".into(),
+            PathBuf::from("./filehost/BClickerDownloader.zip"),
         ),
         (
-            "BuzkaaClickerInstaller2".into(),
-            PathBuf::from("./filehost/BuzkaaClickerInstaller.txt"),
+            "BuzkaaClicker".into(),
+            PathBuf::from("./filehost/BuzkaaClicker-v16.rar"),
         ),
     ]);
     Data::new(FileHost::new(
         Pool::clone(&pg),
-        String::from("BuzkaaClickerInstaller"),
+        String::from("BClickerDownloader"),
         files,
     ))
 }
