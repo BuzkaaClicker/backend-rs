@@ -67,7 +67,7 @@ impl DownloadCount {
             let pg = Pool::clone(&pg);
             async move {
                 let row_result = sqlx::query(
-                    "SELECT COUNT(DISTINCT ip) FROM downloads WHERE file='BuzkaaClickerInstaller'",
+                    "SELECT COUNT(DISTINCT ip) FROM downloads WHERE file='BClickerDownloader'",
                 )
                 .fetch_one(&pg)
                 .await
