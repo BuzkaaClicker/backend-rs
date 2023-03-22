@@ -15,3 +15,6 @@ create table downloads
     ip   inet,
     file varchar(255)
 );
+
+CREATE INDEX file_idx ON downloads (file);
+CREATE INDEX ip_idx ON downloads (ip);
