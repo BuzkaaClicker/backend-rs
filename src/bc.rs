@@ -2,11 +2,29 @@ use crate::cache::Memoized;
 use crate::online_users;
 use crate::online_users::OnlineUsersData;
 use actix_web::http::header::ContentType;
+use actix_web::web::{Data, ServiceConfig};
 use actix_web::{get, web, HttpResponse, Responder};
 use anyhow::Context;
 use log::{debug, error};
 use sqlx::{Pool, Postgres, Row};
 use std::time::Duration;
+
+pub fn configure_service(
+    bc_version: Version,
+    chart_json: &Data<Memoized<ChartJson>>,
+    config: &mut ServiceConfig,
+) {
+    config
+        .app_data(Data::clone(chart_json))
+        .app_data(Data::new(bc_version))
+        .service(get_chart)
+        .service(get_download_count)
+        .service(
+            web::resource(vec!["/online-users", "/onlineUsers"])
+                .route(web::get().to(get_online_users_count)),
+        )
+        .service(version);
+}
 
 #[derive(Copy, Clone)]
 pub struct Version(pub u32);
@@ -28,10 +46,9 @@ impl ChartJson {
                 let result = online_users::get_chart_data(&pg)
                     .await
                     .context("Could not get chart data from db")
-                    .map(|data| {
+                    .and_then(|data| {
                         serde_json::to_string(&data).context("Could not serialize chart data")
-                    })
-                    .flatten();
+                    });
                 Self(match result {
                     Ok(json) => Some(json),
                     Err(err) => {

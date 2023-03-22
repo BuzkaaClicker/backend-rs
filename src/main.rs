@@ -13,7 +13,7 @@ use actix_extensible_rate_limit::RateLimiter;
 use actix_web::http::header::ContentType;
 use actix_web::middleware::DefaultHeaders;
 use actix_web::rt::spawn;
-use actix_web::web::Data;
+use actix_web::web::{Data, ServiceConfig};
 use actix_web::{get, middleware, web, App, HttpResponse, HttpServer, Responder};
 use anyhow::Context;
 use env_logger::Env;
@@ -21,7 +21,8 @@ use log::info;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
 
-use crate::bc::{ChartJson, DownloadCount};
+use crate::bc::{ChartJson, DownloadCount, Version};
+use crate::cache::Memoized;
 use crate::file_host::FileHost;
 use crate::online_users::OnlineUsers;
 use crate::yt::LiveJson;
@@ -82,27 +83,25 @@ async fn main() -> anyhow::Result<()> {
             .app_data(Data::clone(&download_counter))
             .wrap(DefaultHeaders::new().add(("Access-Control-Allow-Origin", "*")))
             .service(index)
-            .service(
-                web::scope("/buzkaaclicker")
-                    .app_data(Data::clone(&chart_json))
-                    .app_data(Data::new(bc_version))
-                    .service(bc::get_chart)
-                    .service(bc::get_download_count)
-                    .service(
-                        web::resource(vec!["/online-users", "/onlineUsers"])
-                            .route(web::get().to(bc::get_online_users_count)),
-                    )
-                    .service(bc::version),
-            )
+            .configure(|app_config| {
+                for path in ["/buzkaaClicker", "/buzkaaclicker"] {
+                    app_config.service(web::scope(path).configure(|config| {
+                        bc::configure_service(bc_version, &chart_json, config)
+                    }));
+                }
+            })
             .service(web::scope("/youtube").service(yt::live))
             .service(
                 web::resource(["/download", "/download/", "/download/{file}"])
                     .route(web::get().to(file_host::download_specific))
                     .wrap(rate_limiter),
             )
-            .wrap(middleware::Logger::new(
-                r#"%a (%{r}a) "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,
-            ).exclude("/youtube/Buzkaa"))
+            .wrap(
+                middleware::Logger::new(
+                    r#"%a (%{r}a) "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,
+                )
+                .exclude("/youtube/Buzkaa"),
+            )
     })
     .bind(("0.0.0.0", 2137))?
     .run()
