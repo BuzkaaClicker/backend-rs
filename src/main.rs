@@ -13,7 +13,7 @@ use actix_extensible_rate_limit::RateLimiter;
 use actix_web::http::header::ContentType;
 use actix_web::middleware::DefaultHeaders;
 use actix_web::rt::spawn;
-use actix_web::web::{Data, ServiceConfig};
+use actix_web::web::Data;
 use actix_web::{get, middleware, web, App, HttpResponse, HttpServer, Responder};
 use anyhow::Context;
 use env_logger::Env;
@@ -21,8 +21,7 @@ use log::info;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
 
-use crate::bc::{ChartJson, DownloadCount, Version};
-use crate::cache::Memoized;
+use crate::bc::{ChartJson, DownloadCount};
 use crate::file_host::FileHost;
 use crate::online_users::OnlineUsers;
 use crate::yt::LiveJson;
