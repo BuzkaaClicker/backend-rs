@@ -6,7 +6,7 @@ use actix_web::http::header::ContentType;
 use actix_web::{get, web, HttpRequest, HttpResponse, Responder};
 use anyhow::{anyhow, Context};
 use chrono::{DateTime, FixedOffset};
-use log::{debug, error};
+use log::{debug, error, info};
 use scraper::{Html, Selector};
 use serde::Serialize;
 
@@ -18,6 +18,7 @@ const LIVE_URL: &str = "https://www.youtube.com/channel/UCL1s7OtDPaX3SdhW5433PRw
 pub struct LiveVisitor {
     name_sel: Selector,
     start_date_sel: Selector,
+    canonical_sel: Selector,
 }
 
 impl LiveVisitor {
@@ -26,19 +27,54 @@ impl LiveVisitor {
             .expect("Invalid name selector");
         let start_date_sel = Selector::parse(r#"#watch7-content > * > meta[itemprop="startDate"]"#)
             .expect("Invalid name selector");
+        let canonical_sel =
+            Selector::parse(r#"link[rel="canonical"]"#).expect("Invalid canonical selector");
         Self {
             name_sel,
             start_date_sel,
+            canonical_sel,
         }
     }
 
-    // aint gonna pay for api
-    pub async fn get_live_meta(&self) -> anyhow::Result<Option<LiveMeta>> {
-        debug!("Scrapping live meta...");
-        let client = awc::Client::default();
+    pub async fn visit(&self) -> anyhow::Result<Option<LiveMeta>> {
+        let live_url = match self.get_live_url().await.context("Could not get live url")? {
+            None => return Ok(None),
+            Some(url) => url,
+        };
+        info!("Live url: {live_url}");
+        let live_meta = self.get_live_meta(&live_url).await?;
+        Ok(live_meta)
+    }
+
+    async fn get_live_url(&self) -> anyhow::Result<Option<String>> {
+        let client = Self::get_awc();
         let mut res = client
             .get(LIVE_URL)
-            .insert_header(("User-Agent", "curl"))
+            .send()
+            .await
+            .map_err(|err| anyhow!("Could not visit youtube channel page: {}", err))?;
+        let body = res
+            .body()
+            .await
+            .context("Could not read youtube channel/live body")?;
+        let body = String::from_utf8_lossy(&body);
+        let document = Html::parse_document(&body);
+        let url_element = match document.select(&self.canonical_sel).next() {
+            None => return Ok(None),
+            Some(element) => element,
+        };
+        let url = url_element
+            .value()
+            .attr("href")
+            .context("Could not select canonical href!")?;
+        Ok(Some(url.to_string()))
+    }
+
+    // aint gonna pay for api
+    async fn get_live_meta(&self, url: &str) -> anyhow::Result<Option<LiveMeta>> {
+        let client = Self::get_awc();
+        let mut res = client
+            .get(url)
             .send()
             .await
             .map_err(|err| anyhow!("Could not visit youtube channel page: {}", err))?;
@@ -67,6 +103,12 @@ impl LiveVisitor {
             DateTime::parse_from_rfc3339(start_date_raw).context("Could not parse start date!")?;
         debug!("Live stream scrapped. Title: '{title}', start date: '{start_date_raw}'");
         Ok(Some(LiveMeta { title, start_date }))
+    }
+
+    fn get_awc() -> awc::Client {
+        awc::Client::builder()
+            .add_default_header(("user-agent", "curl")) // possibly provides GPDR bypass?
+            .finish()
     }
 }
 
@@ -121,7 +163,7 @@ impl LiveJson {
             async move {
                 debug!("Generating new live json...");
                 let result = visitor
-                    .get_live_meta()
+                    .visit()
                     .await
                     .map(LiveResponse::from)
                     .and_then(|response| {
