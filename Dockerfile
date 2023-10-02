@@ -13,7 +13,7 @@ COPY .git/ .git/
 RUN touch src/main.rs
 RUN cargo build --release
 
-FROM debian:buster-slim AS runtime
+FROM debian:bullseye AS runtime
 WORKDIR app
 COPY --from=builder /app/target/release/bclicker-server /usr/local/bin
 COPY filehost/ filehost/
