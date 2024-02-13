@@ -1,4 +1,3 @@
-#![feature(result_option_inspect)]
 #![feature(result_flattening)]
 
 use std::collections::HashMap;
