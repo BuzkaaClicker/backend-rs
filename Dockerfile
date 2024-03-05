@@ -1,4 +1,4 @@
-FROM rustlang/rust:nightly AS builder
+FROM rustlang/rust:nightly-bullseye AS builder
 WORKDIR app
 
 RUN cargo init --name dummy
