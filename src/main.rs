@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-use std::env;
-use std::path::PathBuf;
-use std::sync::Mutex;
-use std::time::Duration;
-
+use crate::bc::{ChartJson, DownloadCount};
+use crate::file_host::FileHost;
+use crate::online_users::OnlineUsers;
+use crate::yt::LiveJson;
 use actix_extensible_rate_limit::backend::memory::InMemoryBackend;
 use actix_extensible_rate_limit::backend::{SimpleInputFunctionBuilder, SimpleOutput};
 use actix_extensible_rate_limit::RateLimiter;
@@ -15,13 +13,13 @@ use actix_web::{get, middleware, web, App, HttpResponse, HttpServer, Responder};
 use anyhow::Context;
 use env_logger::Env;
 use log::info;
-use sqlx::postgres::PgPoolOptions;
-use sqlx::{Pool, Postgres};
-
-use crate::bc::{ChartJson, DownloadCount};
-use crate::file_host::FileHost;
-use crate::online_users::OnlineUsers;
-use crate::yt::LiveJson;
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use sqlx::{Pool, Sqlite};
+use std::collections::HashMap;
+use std::env;
+use std::path::PathBuf;
+use std::sync::Mutex;
+use std::time::Duration;
 
 mod bc;
 mod cache;
@@ -46,11 +44,11 @@ async fn main() -> anyhow::Result<()> {
         .context("BUZKAACLICKER_VERSION is not a u32 number!")?;
     let bc_version = bc::Version(bc_version);
 
-    info!("Establishing postgres connection.");
-    let pg = create_postgres_pool()
+    info!("Establishing sqlite connection.");
+    let pg = create_sqlite_pool()
         .await
-        .expect("Could not create postgres connection!");
-    info!("Established postgres connection.");
+        .expect("Could not create sqlite connection!");
+    info!("Established sqlite connection.");
 
     let online_users = Data::new(Mutex::new(OnlineUsers::new()));
     spawn(online_users::start_archiving(
@@ -105,7 +103,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn create_file_host(pg: Pool<Postgres>) -> Data<FileHost> {
+fn create_file_host(pg: Pool<Sqlite>) -> Data<FileHost> {
     let files = HashMap::from([
         (
             "BClickerDownloader".into(),
@@ -123,13 +121,23 @@ fn create_file_host(pg: Pool<Postgres>) -> Data<FileHost> {
     ))
 }
 
-async fn create_postgres_pool() -> anyhow::Result<Pool<Postgres>> {
-    let url = env::var("POSTGRES_URL").context("Could not get POSTGRES_URL env")?;
-    PgPoolOptions::new()
+async fn create_sqlite_pool() -> anyhow::Result<Pool<Sqlite>> {
+    let pool = SqlitePoolOptions::new()
         .max_connections(10)
-        .connect(&url)
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename("db.sqlite")
+                .create_if_missing(true),
+        )
         .await
-        .context("Could not connect to postgres")
+        .context("connect to sqlite")?;
+
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .context("run migrations")?;
+
+    Ok(pool)
 }
 
 #[get("/")]

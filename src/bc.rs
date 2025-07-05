@@ -6,7 +6,7 @@ use actix_web::web::{Data, ServiceConfig};
 use actix_web::{get, web, HttpResponse, Responder};
 use anyhow::Context;
 use log::{debug, error};
-use sqlx::{Pool, Postgres, Row};
+use sqlx::{Pool, Row, Sqlite};
 use std::time::Duration;
 
 pub fn configure_service(
@@ -38,7 +38,7 @@ pub async fn get_online_users_count(online_users: OnlineUsersData) -> impl Respo
 pub struct ChartJson(Option<String>);
 
 impl ChartJson {
-    pub async fn memoized(pg: Pool<Postgres>) -> Memoized<Self> {
+    pub async fn memoized(pg: Pool<Sqlite>) -> Memoized<Self> {
         Memoized::new(Duration::from_secs(60), move || {
             let pg = Pool::clone(&pg);
             async move {
@@ -79,7 +79,7 @@ pub async fn get_chart(chart: web::Data<Memoized<ChartJson>>) -> actix_web::Resu
 pub struct DownloadCount(Option<u64>);
 
 impl DownloadCount {
-    pub async fn memoized(pg: Pool<Postgres>) -> Memoized<Self> {
+    pub async fn memoized(pg: Pool<Sqlite>) -> Memoized<Self> {
         Memoized::new(Duration::from_secs(60), move || {
             let pg = Pool::clone(&pg);
             async move {

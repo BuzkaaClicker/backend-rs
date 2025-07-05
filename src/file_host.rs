@@ -2,18 +2,18 @@ use actix_files::NamedFile;
 use actix_web::{web, HttpRequest};
 use anyhow::Context;
 use log::error;
-use sqlx::{Pool, Postgres};
+use sqlx::{Pool, Sqlite};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
 pub struct FileHost {
-    pg: Pool<Postgres>,
+    pg: Pool<Sqlite>,
     default_file: String,
     files: HashMap<String, PathBuf>,
 }
 
 impl FileHost {
-    pub fn new(pg: Pool<Postgres>, default_file: String, files: HashMap<String, PathBuf>) -> Self {
+    pub fn new(pg: Pool<Sqlite>, default_file: String, files: HashMap<String, PathBuf>) -> Self {
         let files_lowercase = HashMap::from_iter(
             files
                 .into_iter()
@@ -47,7 +47,7 @@ impl FileHost {
     }
 
     async fn insert_stat(&self, ip: &str, file_name: &str) -> anyhow::Result<()> {
-        sqlx::query("INSERT INTO downloads (time, ip, file) VALUES (NOW(), $1::inet, $2)")
+        sqlx::query("insert into downloads (time, ip, file) values (datetime('now'), ?, ?);")
             .bind(ip)
             .bind(file_name)
             .execute(&self.pg)

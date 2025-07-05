@@ -3,7 +3,7 @@ use actix_web::web;
 use anyhow::Context;
 use built::chrono::NaiveDateTime;
 use log::{error, info};
-use sqlx::{Pool, Postgres, Row};
+use sqlx::{Pool, Row, Sqlite};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -41,8 +41,8 @@ impl OnlineUsers {
     }
 }
 
-async fn insert_online_users(pg: &Pool<Postgres>, online_count: u32) -> anyhow::Result<()> {
-    sqlx::query("INSERT INTO online_users (time, count) VALUES (NOW(), $1)")
+async fn insert_online_users(pg: &Pool<Sqlite>, online_count: u32) -> anyhow::Result<()> {
+    sqlx::query("insert into online_users (time, count) values (datetime('now'), ?);")
         .bind(online_count as i32)
         .execute(pg)
         .await
@@ -50,7 +50,7 @@ async fn insert_online_users(pg: &Pool<Postgres>, online_count: u32) -> anyhow::
     Ok(())
 }
 
-pub async fn start_archiving(pg: Pool<Postgres>, online_users_data: OnlineUsersData) {
+pub async fn start_archiving(pg: Pool<Sqlite>, online_users_data: OnlineUsersData) {
     let mut store_interval = time::interval(Duration::from_secs(60));
     store_interval.tick().await;
     loop {
@@ -78,9 +78,9 @@ pub struct ChartData {
     counts: Vec<u32>,
 }
 
-pub async fn get_chart_data(pg: &Pool<Postgres>) -> anyhow::Result<ChartData> {
+pub async fn get_chart_data(pg: &Pool<Sqlite>) -> anyhow::Result<ChartData> {
     let rows =
-        sqlx::query("SELECT time, count FROM online_users ORDER BY id DESC LIMIT 60 * 24 * 7;")
+        sqlx::query("select time, count from online_users order by id desc limit 60 * 24 * 7;")
             .fetch_all(pg)
             .await
             .context("Could not select data")?;
