@@ -7,11 +7,11 @@
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
       binaries = builtins.fetchGit {
-        url = "git@github.com:BuzkaaClicker/bins.git";
+        url = "git@github.com-buzkaaclicker-bins:BuzkaaClicker/bins.git";
         rev = "ab668c1893b0c0586cfe1184b23bf09d7f82cb29";
       };
       frontend = builtins.fetchGit {
-        url = "git@github.com:BuzkaaClicker/frontend-og.git";
+        url = "git@github.com-buzkaaclicker-frontend-og:BuzkaaClicker/frontend-og.git";
         rev = "58389653f1a364cf6038cbf2f3f6fbf84a56b890";
       };
     in
