@@ -5,11 +5,12 @@ use crate::yt::LiveJson;
 use actix_extensible_rate_limit::backend::memory::InMemoryBackend;
 use actix_extensible_rate_limit::backend::{SimpleInputFunctionBuilder, SimpleOutput};
 use actix_extensible_rate_limit::RateLimiter;
+use actix_files::Files;
 use actix_web::http::header::ContentType;
 use actix_web::middleware::DefaultHeaders;
 use actix_web::rt::spawn;
 use actix_web::web::Data;
-use actix_web::{get, middleware, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{get, guard, middleware, web, App, HttpResponse, HttpServer, Responder};
 use anyhow::Context;
 use env_logger::Env;
 use log::info;
@@ -62,33 +63,49 @@ async fn main() -> anyhow::Result<()> {
     let download_counter = Data::new(DownloadCount::memoized(Pool::clone(&pg)).await);
 
     HttpServer::new(move || {
-        let input = SimpleInputFunctionBuilder::new(Duration::from_secs(5), 1)
-            .real_ip_key()
-            .build();
-        let rate_limiter = RateLimiter::builder(rate_limiter_backend.clone(), input)
-            .add_headers()
-            .request_denied_response(rate_limited)
-            .build();
+        let download_rate_limiter = RateLimiter::builder(
+            rate_limiter_backend.clone(),
+            SimpleInputFunctionBuilder::new(Duration::from_secs(5), 1)
+                .real_ip_key()
+                .build(),
+        )
+        .request_denied_response(rate_limited)
+        .build();
         App::new()
-            .app_data(Data::clone(&online_users))
-            .app_data(Data::new(Pool::clone(&pg)))
-            .app_data(Data::clone(&file_host))
-            .app_data(Data::clone(&live_json))
-            .app_data(Data::clone(&download_counter))
-            .wrap(DefaultHeaders::new().add(("Access-Control-Allow-Origin", "*")))
-            .service(index)
-            .configure(|app_config| {
-                for path in ["/buzkaaClicker", "/buzkaaclicker"] {
-                    app_config.service(web::scope(path).configure(|config| {
-                        bc::configure_service(bc_version, &chart_json, config)
-                    }));
-                }
-            })
-            .service(web::scope("/youtube").service(yt::live))
             .service(
-                web::resource(["/download", "/download/", "/download/{file}"])
-                    .route(web::get().to(file_host::download_specific))
-                    .wrap(rate_limiter),
+                web::scope("")
+                    .guard(
+                        guard::Any(guard::Host("apiv2.makin.cc"))
+                            .or(guard::Host("buzkaaclickerapi.firma.sex.pl")),
+                    )
+                    .app_data(Data::clone(&online_users))
+                    .app_data(Data::new(Pool::clone(&pg)))
+                    .app_data(Data::clone(&file_host))
+                    .app_data(Data::clone(&live_json))
+                    .app_data(Data::clone(&download_counter))
+                    .wrap(DefaultHeaders::new().add(("Access-Control-Allow-Origin", "*")))
+                    .service(index)
+                    .configure(|app_config| {
+                        for path in ["/buzkaaClicker", "/buzkaaclicker"] {
+                            app_config.service(web::scope(path).configure(|config| {
+                                bc::configure_service(bc_version, &chart_json, config)
+                            }));
+                        }
+                    })
+                    .service(web::scope("/youtube").service(yt::live))
+                    .service(
+                        web::resource(["/download", "/download/", "/download/{file}"])
+                            .route(web::get().to(file_host::download_specific))
+                            .wrap(download_rate_limiter),
+                    ),
+            )
+            .service(
+                web::scope("")
+                    .guard(
+                        guard::Any(guard::Host("buzkaaclicker.pl"))
+                            .or(guard::Host("buzkaaclicker.firma.sex.pl")),
+                    )
+                    .service(Files::new("/", "./static").index_file("index.html")),
             )
             .wrap(
                 middleware::Logger::new(
