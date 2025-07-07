@@ -21,11 +21,15 @@
         src = pkgs.lib.cleanSourceWith {
           src = ./.;
           filter =
-            path: type:
+            path: _:
             let
-              baseName = baseNameOf path;
+              name = baseNameOf path;
             in
-            baseName != "target";
+            name != "target" && name != ".git";
+        };
+
+        env = {
+          BUILT_OVERRIDE_bclicker-server_GIT_VERSION = self.shortRev or "dirty";
         };
 
         cargoLock = {
