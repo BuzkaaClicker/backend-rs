@@ -25,7 +25,7 @@
             let
               baseName = baseNameOf path;
             in
-            baseName != "target" && baseName != ".git";
+            baseName != "target";
         };
 
         cargoLock = {
