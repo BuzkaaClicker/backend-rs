@@ -57,17 +57,21 @@
 
           config = lib.mkIf config.services.buzkaaclicker-backend.enable (
             let
-              homeDir = config.users.users.buzkaaclicker-backend.home;
+              homeDir = "/var/lib/buzkaaclicker-backend";
             in
             {
               systemd.services.buzkaaclicker-backend = {
                 description = "Buzkaa Clicker Backend";
                 wantedBy = [ "multi-user.target" ];
                 after = [ "network.target" ];
+                startLimitIntervalSec = 120;
+                startLimitBurst = 5;
                 serviceConfig = {
                   ExecStart = "${self.packages.${pkgs.system}.default}/bin/bclicker-server";
                   WorkingDirectory = homeDir;
-                  Restart = "always";
+                  StateDirectory = "buzkaaclicker-backend";
+                  Restart = "on-failure";
+                  RestartSec = "5s";
                   User = "buzkaaclicker-backend";
                   Group = "buzkaaclicker-backend";
                 };
@@ -79,8 +83,6 @@
               users.users.buzkaaclicker-backend = {
                 isSystemUser = true;
                 group = "buzkaaclicker-backend";
-                createHome = true;
-                home = "/home/buzkaaclicker-backend";
               };
               users.groups.buzkaaclicker-backend = { };
 
