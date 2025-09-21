@@ -91,19 +91,22 @@
 
               systemd.tmpfiles.rules =
                 let
-                  # symlink all files, because i dont want to override this whole directory!
                   binRules = [
+                    # braaawo kurwa brawo https://github.com/systemd/systemd/issues/27591
+                    "d /var/log/${logDir} 0750 buzkaaclicker-backend buzkaaclicker-backend -"
                     "d ${homeDir}/filehost 0555 buzkaaclicker-backend buzkaaclicker-backend -"
                   ]
-                  ++ (
-                    let
-                      filesDir = builtins.readDir (binaries);
-                    in
-                    filesDir
-                    |> builtins.attrNames
-                    |> builtins.filter (file: filesDir.${file} == "regular")
-                    |> builtins.map (file: "L+ ${homeDir}/filehost/${file} - - - - ${binaries}/${file}")
-                  );
+                  ++
+                    # symlink all files, because i dont want to override this whole directory!
+                    (
+                      let
+                        filesDir = builtins.readDir (binaries);
+                      in
+                      filesDir
+                      |> builtins.attrNames
+                      |> builtins.filter (file: filesDir.${file} == "regular")
+                      |> builtins.map (file: "L+ ${homeDir}/filehost/${file} - - - - ${binaries}/${file}")
+                    );
 
                   staticRules = [
                     "L+ ${homeDir}/static - - - - ${frontend}"
