@@ -12,7 +12,7 @@
       };
       frontend = builtins.fetchGit {
         url = "git@github.com-buzkaaclicker-frontend-og:BuzkaaClicker/frontend-og.git";
-        rev = "58389653f1a364cf6038cbf2f3f6fbf84a56b890";
+        rev = "f821810121b12a263137ae771766a77626aaee16";
       };
     in
     {
