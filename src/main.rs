@@ -72,6 +72,7 @@ async fn main() -> anyhow::Result<()> {
         .request_denied_response(rate_limited)
         .build();
         App::new()
+            .app_data(Data::clone(&file_host))
             .service(
                 web::scope("")
                     .guard(
@@ -80,7 +81,6 @@ async fn main() -> anyhow::Result<()> {
                     )
                     .app_data(Data::clone(&online_users))
                     .app_data(Data::new(Pool::clone(&pg)))
-                    .app_data(Data::clone(&file_host))
                     .app_data(Data::clone(&live_json))
                     .app_data(Data::clone(&download_counter))
                     .wrap(DefaultHeaders::new().add(("Access-Control-Allow-Origin", "*")))
