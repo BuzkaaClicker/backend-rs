@@ -71,6 +71,7 @@
                   ExecStart = "${self.packages.${pkgs.system}.default}/bin/bclicker-server";
                   WorkingDirectory = homeDir;
                   StateDirectory = "buzkaaclicker-backend";
+                  StateDirectoryMode = 0750;
                   Restart = "on-failure";
                   RestartSec = "5s";
                   User = "buzkaaclicker-backend";
