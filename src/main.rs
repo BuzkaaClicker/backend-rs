@@ -96,7 +96,7 @@ async fn main() -> anyhow::Result<()> {
                     .service(
                         web::resource(["/download", "/download/", "/download/{file}"])
                             .route(web::get().to(file_host::download_specific))
-                            .wrap(download_rate_limiter),
+                            .wrap(download_rate_limiter.clone()),
                     ),
             )
             .service(
@@ -104,6 +104,11 @@ async fn main() -> anyhow::Result<()> {
                     .guard(
                         guard::Any(guard::Host("buzkaaclicker.pl"))
                             .or(guard::Host("buzkaaclicker.firma.sex.pl")),
+                    )
+                    .service(
+                        web::resource(["/download", "/download/", "/download/{file}"])
+                            .route(web::get().to(file_host::download_specific))
+                            .wrap(download_rate_limiter),
                     )
                     .service(Files::new("/", "./static").index_file("index.html")),
             )
