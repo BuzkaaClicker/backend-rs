@@ -58,6 +58,7 @@
           config = lib.mkIf config.services.buzkaaclicker-backend.enable (
             let
               homeDir = "/var/lib/buzkaaclicker-backend";
+              logDir = "buzkaaclicker-backend";
             in
             {
               systemd.services.buzkaaclicker-backend = {
@@ -74,6 +75,8 @@
                   RestartSec = "5s";
                   User = "buzkaaclicker-backend";
                   Group = "buzkaaclicker-backend";
+                  LogsDirectory = logDir;
+                  StandardOutput = "file:/var/log/${logDir}/stdout.log";
                 };
                 environment = {
                   BUZKAACLICKER_VERSION = builtins.toString config.services.buzkaaclicker-backend.clickerVersion;
@@ -89,19 +92,18 @@
               systemd.tmpfiles.rules =
                 let
                   # symlink all files, because i dont want to override this whole directory!
-                  binRules =
-                    [
-                      "d ${homeDir}/filehost 0555 buzkaaclicker-backend buzkaaclicker-backend -"
-                    ]
-                    ++ (
-                      let
-                        filesDir = builtins.readDir (binaries);
-                      in
-                      filesDir
-                      |> builtins.attrNames
-                      |> builtins.filter (file: filesDir.${file} == "regular")
-                      |> builtins.map (file: "L+ ${homeDir}/filehost/${file} - - - - ${binaries}/${file}")
-                    );
+                  binRules = [
+                    "d ${homeDir}/filehost 0555 buzkaaclicker-backend buzkaaclicker-backend -"
+                  ]
+                  ++ (
+                    let
+                      filesDir = builtins.readDir (binaries);
+                    in
+                    filesDir
+                    |> builtins.attrNames
+                    |> builtins.filter (file: filesDir.${file} == "regular")
+                    |> builtins.map (file: "L+ ${homeDir}/filehost/${file} - - - - ${binaries}/${file}")
+                  );
 
                   staticRules = [
                     "L+ ${homeDir}/static - - - - ${frontend}"
