@@ -77,7 +77,7 @@
                   User = "buzkaaclicker-backend";
                   Group = "buzkaaclicker-backend";
                   LogsDirectory = logDir;
-                  StandardOutput = "file:/var/log/${logDir}/stdout.log";
+                  StandardOutput = "append:/var/log/${logDir}/stdout.log";
                 };
                 environment = {
                   BUZKAACLICKER_VERSION = builtins.toString config.services.buzkaaclicker-backend.clickerVersion;
