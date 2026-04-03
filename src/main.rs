@@ -114,7 +114,7 @@ async fn main() -> anyhow::Result<()> {
             )
             .wrap(
                 middleware::Logger::new(
-                    r#"%a (%{r}a) "%r" %s %b "%{Referer}i" "%{User-Agent}i" %T"#,
+                    r#"%a (%{r}a) "%r" %s %b "%{Host}i" "%{Referer}i" "%{User-Agent}i" %T"#,
                 )
                 .exclude("/youtube/Buzkaa"),
             )
