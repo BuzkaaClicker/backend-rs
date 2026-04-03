@@ -12,7 +12,6 @@ use actix_web::rt::spawn;
 use actix_web::web::Data;
 use actix_web::{get, guard, middleware, web, App, HttpResponse, HttpServer, Responder};
 use anyhow::Context;
-use env_logger::Env;
 use log::info;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::{Pool, Sqlite};
@@ -35,7 +34,9 @@ pub mod built_info {
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
     env::set_var("RUST_BACKTRACE", "1");
-    env_logger::Builder::from_env(Env::new().default_filter_or("info"))
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Info)
+        .parse_default_env()
         .format_timestamp_millis()
         .init();
 
