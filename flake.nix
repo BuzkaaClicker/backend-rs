@@ -28,11 +28,6 @@
             name != "target" && name != ".git";
         };
 
-        nativeBuildInputs = with pkgs; [
-          wild
-          clang
-        ];
-
         env = {
           BUILT_OVERRIDE_bclicker-server_GIT_VERSION = self.shortRev or "dirty";
         };
