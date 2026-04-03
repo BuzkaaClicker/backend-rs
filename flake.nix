@@ -68,7 +68,7 @@
                 startLimitIntervalSec = 120;
                 startLimitBurst = 5;
                 serviceConfig = {
-                  ExecStart = "${self.packages.${pkgs.system}.default}/bin/bclicker-server";
+                  ExecStart = "${self.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/bclicker-server";
                   WorkingDirectory = homeDir;
                   StateDirectory = "buzkaaclicker-backend";
                   StateDirectoryMode = 0750;
