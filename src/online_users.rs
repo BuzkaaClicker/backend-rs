@@ -1,7 +1,8 @@
 use actix_web::rt::time;
 use actix_web::web;
 use anyhow::Context;
-use built::chrono::NaiveDateTime;
+use chrono::NaiveDateTime;
+use chrono_tz::Europe::Warsaw;
 use log::{error, info};
 use sqlx::{Pool, Row, Sqlite};
 use std::collections::HashMap;
@@ -87,11 +88,12 @@ pub async fn get_chart_data(pg: &Pool<Sqlite>) -> anyhow::Result<ChartData> {
     let mut time_labels = Vec::with_capacity(rows.len());
     let mut counts = Vec::with_capacity(rows.len());
     for row in rows {
-        let time = row
+        let time_utc = row
             .try_get::<NaiveDateTime, _>("time")
             .expect("time must be NaiveDateTime");
         let count = row.try_get::<i32, _>("count").expect("count must be i32") as u32;
-        let time_formatted = time.format("%d.%m %H:%M").to_string();
+        let time_warsaw = time_utc.and_utc().with_timezone(&Warsaw);
+        let time_formatted = time_warsaw.format("%d.%m %H:%M").to_string();
         time_labels.push(time_formatted);
         counts.push(count);
     }
