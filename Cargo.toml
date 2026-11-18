@@ -10,7 +10,7 @@ actix-web = "4"
 anyhow = "1.0"
 built = { version = "0.8", features = ["git2", "chrono"] }
 serde = { version = "1.0", features = ["derive"] }
-sqlx = { version = "0.8", features = [
+sqlx = { version = "0.9", features = [
     "runtime-tokio",
     "sqlite",
     "time",
@@ -20,10 +20,10 @@ futures = "0.3"
 log = "0.4"
 env_logger = "0.11"
 serde_json = "1.0"
-actix-files = "0.6"
+actix-files = "0.7"
 actix-extensible-rate-limit = "0.4"
 awc = { version = "3.8", features = ["rustls"] }
-scraper = "0.26"
+scraper = "0.29"
 chrono = "0.4"
 chrono-tz = "0.10"
 

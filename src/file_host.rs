@@ -39,8 +39,11 @@ impl FileHost {
         if let Err(err) = self.insert_stat(ip, file_name).await {
             error!("Could not insert download statistic to db: {:#}", err);
         }
-        NamedFile::open_async(file_path)
+        let file_path = file_path.clone();
+        web::block(move || NamedFile::open(file_path))
             .await
+            .inspect_err(|err| error!("Could not run blocking file open: {err}"))
+            .map_err(|_| actix_web::error::ErrorInternalServerError("could not serve file"))?
             .map(|file| file.use_etag(true).use_last_modified(true))
             .inspect_err(|err| error!("Could not open named file: {err}"))
             .map_err(|_| actix_web::error::ErrorInternalServerError("could not serve file"))

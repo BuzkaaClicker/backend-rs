@@ -6,11 +6,11 @@
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
-      binaries = builtins.fetchGit {
+      binaries = fetchGit {
         url = "ssh://git@github.com-buzkaaclicker-bins/BuzkaaClicker/bins.git";
         rev = "ab668c1893b0c0586cfe1184b23bf09d7f82cb29";
       };
-      frontend = builtins.fetchGit {
+      frontend = fetchGit {
         url = "ssh://git@github.com-buzkaaclicker-frontend-og/BuzkaaClicker/frontend-og.git";
         rev = "f821810121b12a263137ae771766a77626aaee16";
       };
@@ -50,7 +50,6 @@
           config,
           lib,
           pkgs,
-          inputs,
           ...
         }:
         {
@@ -88,7 +87,7 @@
                   StandardOutput = "append:/var/log/${logDir}/stdout.log";
                 };
                 environment = {
-                  BUZKAACLICKER_VERSION = builtins.toString config.services.buzkaaclicker-backend.clickerVersion;
+                  BUZKAACLICKER_VERSION = toString config.services.buzkaaclicker-backend.clickerVersion;
                 };
               };
 
@@ -109,12 +108,12 @@
                     # symlink all files, because i dont want to override this whole directory!
                     (
                       let
-                        filesDir = builtins.readDir (binaries);
+                        filesDir = builtins.readDir binaries;
                       in
                       filesDir
                       |> builtins.attrNames
                       |> builtins.filter (file: filesDir.${file} == "regular")
-                      |> builtins.map (file: "L+ ${homeDir}/filehost/${file} - - - - ${binaries}/${file}")
+                      |> map (file: "L+ ${homeDir}/filehost/${file} - - - - ${binaries}/${file}")
                     );
 
                   staticRules = [
