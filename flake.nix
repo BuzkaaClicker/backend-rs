@@ -35,6 +35,14 @@
         cargoLock = {
           lockFile = ./Cargo.lock;
         };
+
+        nativeBuildInputs = [ pkgs.pkg-config ];
+        buildInputs = [
+          pkgs.zstd
+          pkgs.sqlite
+          pkgs.zlib
+          pkgs.libgit2
+        ];
       };
 
       nixosModules.default =
