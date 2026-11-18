@@ -45,6 +45,28 @@
         ];
       };
 
+      devShells.${system}.default =
+        let
+          toolchain = pkgs.symlinkJoin {
+            name = "rust-toolchain";
+            paths = [
+              pkgs.cargo
+              pkgs.rustc
+              pkgs.clippy
+              pkgs.rustfmt
+            ];
+          };
+        in
+        pkgs.mkShell {
+          inputsFrom = [ self.packages.${system}.default ];
+          packages = [
+            toolchain
+            pkgs.rust-analyzer
+          ];
+          RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
+          RUSTUP_TOOLCHAIN = "${toolchain}";
+        };
+
       nixosModules.default =
         {
           config,
